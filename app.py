@@ -15,7 +15,7 @@ from flask import (
 )
 
 
-BACKEND_URL = os.environ.get("BACKEND_URL", "https://chatapp-backend-vofr.onrender.com/api").rstrip("/")
+BACKEND_URL = os.environ.get("BACKEND_URL", "https://chatapp-backend-vofr.onrender.com").rstrip("/")
 
 app = Flask(__name__)
 # Used only to store frontend session data (JWT + user object). No DB.
@@ -34,6 +34,20 @@ def _backend_headers() -> Dict[str, str]:
     headers: Dict[str, str] = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+
+    # Identify trusted service-to-service calls so backend bot protection
+    # doesn't block the Flask frontend in production.
+    internal_token = os.environ.get("INTERNAL_CALL_TOKEN")
+    if internal_token:
+        headers["X-Internal-Token"] = internal_token
+
+    # Some WAF/bot detectors treat the default python-requests UA as automated traffic.
+    # Setting a neutral UA reduces false positives when calling our own backend.
+    headers.setdefault(
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    )
     return headers
 
 
