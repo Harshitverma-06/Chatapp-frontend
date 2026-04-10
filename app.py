@@ -15,7 +15,7 @@ from flask import (
 )
 
 
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:3000").rstrip("/")
+BACKEND_URL = os.environ.get("BACKEND_URL", "https://chatapp-backend-vofr.onrender.com").rstrip("/")
 
 app = Flask(__name__)
 # Used only to store frontend session data (JWT + user object). No DB.
