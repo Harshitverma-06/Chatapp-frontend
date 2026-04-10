@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h1 class="h1">Register</h1>
+
+    <form method="post" action="{{ url_for('register_post') }}" class="form" enctype="multipart/form-data">
+      <label class="label">
+        <span>Username</span>
+        <input class="input" name="username" placeholder="john_doe" required />
+      </label>
+
+      <label class="label">
+        <span>Full name</span>
+        <input class="input" name="fullname" placeholder="John Doe" required />
+      </label>
+
+      <label class="label">
+        <span>Email</span>
+        <input class="input" type="email" name="email" placeholder="you@example.com" required />
+      </label>
+
+      <label class="label">
+        <span>Password (min 6 chars)</span>
+        <input class="input" type="password" name="password" placeholder="••••••••" required />
+      </label>
+
+      <label class="label">
+        <span>Avatar (optional)</span>
+        <input class="input" type="file" name="avatar" accept="image/*" />
+      </label>
+
+      <button class="btn" type="submit">Create account</button>
+    </form>
+
+    <div class="divider"></div>
+    <p class="muted">
+      Already have an account? <a href="{{ url_for('login') }}">Sign in</a>.
+    </p>
+  </div>
+{% endblock %}
+

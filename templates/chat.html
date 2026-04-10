@@ -1,0 +1,693 @@
+{% extends "base.html" %}
+
+{% block title %}Chat{% endblock %}
+
+{% block content %}
+  <!-- NEW: Profile top navigation bar (avatar + menu) -->
+  <div class="chatnav">
+    <button class="avatar-btn" id="avatarBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="Profile">
+      <img id="avatarImg" class="avatar-img" src="" alt="Your avatar" />
+      <span class="avatar-name" id="avatarName"></span>
+    </button>
+
+    <div class="chatnav__spacer"></div>
+
+    <button class="icon-btn" id="menuBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="Account menu">
+      ⋮
+    </button>
+  </div>
+
+  <!-- NEW: Avatar dropdown -->
+  <div class="menu" id="avatarMenu" role="menu" aria-hidden="true">
+    <button class="menu__item" id="updateAvatarBtn" type="button" role="menuitem">Update Avatar</button>
+  </div>
+
+  <!-- NEW: Three-dot dropdown -->
+  <div class="menu" id="dotsMenu" role="menu" aria-hidden="true">
+    <button class="menu__item" id="openPasswordBtn" type="button" role="menuitem">Update Password</button>
+    <button class="menu__item" id="openAccountBtn" type="button" role="menuitem">Update Account Details</button>
+  </div>
+
+  <!-- NEW: Hidden file input for avatar upload -->
+  <input id="avatarFileInput" type="file" accept="image/*" hidden />
+
+  <!-- NEW: Password modal -->
+  <div class="modal" id="passwordModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="passwordTitle">
+      <div class="modal__header">
+        <div class="modal__title" id="passwordTitle">Update Password</div>
+        <button class="icon-btn" type="button" data-close="1" aria-label="Close">×</button>
+      </div>
+      <form class="modal__body form" id="passwordForm">
+        <label class="label">
+          <span>Old password</span>
+          <input class="input" name="oldPassword" type="password" required />
+        </label>
+        <label class="label">
+          <span>New password</span>
+          <input class="input" name="newPassword" type="password" minlength="6" required />
+        </label>
+        <div class="modal__footer">
+          <div class="modal__msg" id="passwordMsg"></div>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" data-close="1">Cancel</button>
+            <button class="btn" type="submit">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- NEW: Account details modal -->
+  <div class="modal" id="accountModal" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+      <div class="modal__header">
+        <div class="modal__title" id="accountTitle">Update Account Details</div>
+        <button class="icon-btn" type="button" data-close="1" aria-label="Close">×</button>
+      </div>
+      <form class="modal__body form" id="accountForm">
+        <label class="label">
+          <span>Username</span>
+          <input class="input" name="username" required />
+        </label>
+        <label class="label">
+          <span>Full name</span>
+          <input class="input" name="fullname" required />
+        </label>
+        <label class="label">
+          <span>Email</span>
+          <input class="input" name="email" type="email" required />
+        </label>
+        <div class="modal__footer">
+          <div class="modal__msg" id="accountMsg"></div>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" data-close="1">Cancel</button>
+            <button class="btn" type="submit">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar__section">
+        <div class="sidebar__title">Me</div>
+        {% if me %}
+          <div class="me">
+            <div class="me__name">{{ me.fullname or me.username }}</div>
+            <div class="me__sub muted">{{ me.email }}</div>
+          </div>
+        {% else %}
+          <div class="muted">User info not available.</div>
+        {% endif %}
+      </div>
+
+      <div class="sidebar__section">
+        <div class="sidebar__title">Chat partners</div>
+        {% if chats and chats|length > 0 %}
+          <ul class="list">
+            {% for u in chats %}
+              <li class="list__item">
+                <a class="list__link {% if selected_user_id and u._id == selected_user_id %}active{% endif %}"
+                   href="{{ url_for('chat', user=u._id) }}"> 
+                  <div class="list__primary">{{ u.fullname or u.username }}</div>
+                  <div class="list__secondary">{{ u.email }}</div>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="muted">No chats yet.</div>
+        {% endif %}
+      </div>
+
+      <div class="sidebar__section">
+        <div class="sidebar__title">All contacts</div>
+        {% if contacts and contacts|length > 0 %}
+          <ul class="list">
+            {% for u in contacts %}
+              <li class="list__item">
+                <a class="list__link {% if selected_user_id and u._id == selected_user_id %}active{% endif %}"
+                   href="{{ url_for('chat', user=u._id) }}">
+                  <div class="list__primary">{{ u.fullname or u.username }}</div>
+                  <div class="list__secondary">{{ u.email }}</div>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="muted">No contacts found.</div>
+        {% endif %}
+      </div>
+    </aside>
+
+    <section class="chat">
+      <div class="chat__header">
+        {% if selected_user %}
+          <div>
+            <div class="chat__title">{{ selected_user.fullname or selected_user.username }}</div>
+            <div class="muted">{{ selected_user.email }}</div>
+          </div>
+          <a class="btn btn--ghost" href="{{ url_for('chat', user=selected_user_id) }}">Refresh</a>
+        {% elif selected_user_id %}
+          <div>
+            <div class="chat__title">Conversation</div>
+            <div class="muted">User ID: <code class="code">{{ selected_user_id }}</code></div>
+          </div>
+          <a class="btn btn--ghost" href="{{ url_for('chat', user=selected_user_id) }}">Refresh</a>
+        {% else %}
+          <div>
+            <div class="chat__title">Select a contact</div>
+            <div class="muted">Choose someone from the left to load messages.</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="chat__body">
+        {% if selected_user_id %}
+          {% if messages and messages|length > 0 %}
+            <div class="messages">
+              {% for m in messages %}
+                {% set mine = me and (m.senderId == me._id) %}
+                <div class="msg {% if mine %}msg--mine{% else %}msg--theirs{% endif %}" id="msg-{{ m._id }}" data-message-id="{{ m._id }}">
+                  {% if m.text %}
+                    <div class="msg__text">{{ m.text }}</div>
+                  {% endif %}
+                  {% if m.image %}
+                    <div class="msg__image">
+                      <a href="{{ m.image }}" target="_blank" rel="noreferrer">
+                        <img class="msg__img" src="{{ m.image }}" alt="Image" loading="lazy" />
+                      </a>
+                    </div>
+                  {% endif %}
+                  {% if mine %}
+                    <div class="msg__actions">
+                      <form method="post" action="{{ url_for('delete_message', message_id=m._id) }}" class="inline">
+                        <button class="btn btn--ghost btn--danger" type="submit" title="Unsend">
+                          Unsend
+                        </button>
+                      </form>
+                    </div>
+                  {% endif %}
+                  <div class="msg__meta muted">
+                    <span>{{ "You" if mine else "Them" }}</span>
+                    {% if m.createdAt %}
+                      <span>·</span>
+                      <span>{{ m.createdAt }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty">
+              <div class="muted">No messages yet.</div>
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="empty">
+            <div class="muted">Pick a contact to start chatting.</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="chat__composer">
+        <form method="post" action="{{ url_for('send_message') }}" enctype="multipart/form-data" class="composer">
+          <input type="hidden" name="receiver_id" value="{{ selected_user_id or '' }}" />
+          <input class="input composer__text" name="text" placeholder="Type a message..." {% if not selected_user_id %}disabled{% endif %} />
+          <label class="file">
+            <input type="file" name="image" accept="image/*" {% if not selected_user_id %}disabled{% endif %} />
+            <span>Image</span>
+          </label>
+          <button class="btn composer__send" type="submit" {% if not selected_user_id %}disabled{% endif %}>Send</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <script id="me-data" type="application/json">{{ (me or {}) | tojson }}</script>
+
+  <!-- NEW: Profile integration logic -->
+  <script>
+    const DEFAULT_AVATAR =
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#7aa2ff"/>
+              <stop offset="1" stop-color="#3ddc97"/>
+            </linearGradient>
+          </defs>
+          <rect width="96" height="96" rx="48" fill="url(#g)"/>
+          <circle cx="48" cy="38" r="16" fill="rgba(0,0,0,0.22)"/>
+          <path d="M20 86c6-16 18-24 28-24s22 8 28 24" fill="rgba(0,0,0,0.22)"/>
+        </svg>
+      `);
+
+    const avatarBtn = document.getElementById("avatarBtn");
+    const avatarImg = document.getElementById("avatarImg");
+    const avatarName = document.getElementById("avatarName");
+    const avatarMenu = document.getElementById("avatarMenu");
+    const menuBtn = document.getElementById("menuBtn");
+    const dotsMenu = document.getElementById("dotsMenu");
+    const updateAvatarBtn = document.getElementById("updateAvatarBtn");
+    const avatarFileInput = document.getElementById("avatarFileInput");
+
+    const passwordModal = document.getElementById("passwordModal");
+    const accountModal = document.getElementById("accountModal");
+    const passwordForm = document.getElementById("passwordForm");
+    const accountForm = document.getElementById("accountForm");
+    const passwordMsg = document.getElementById("passwordMsg");
+    const accountMsg = document.getElementById("accountMsg");
+
+    let me = JSON.parse(document.getElementById("me-data")?.textContent || "{}");
+
+    function _safeName(u) {
+      return (u && (u.fullname || u.username)) ? (u.fullname || u.username) : "Me";
+    }
+
+    function renderAvatar() {
+      const src = (me && me.avatar) ? me.avatar : DEFAULT_AVATAR;
+      avatarImg.src = src;
+      avatarName.textContent = _safeName(me);
+    }
+
+    async function refreshMe() {
+      const r = await fetch("/api/me", { headers: { "Accept": "application/json" } });
+      const body = await r.json().catch(() => ({}));
+      if (r.ok && body && body.success) {
+        me = body.data || me;
+        renderAvatar();
+        // also update sidebar "Me" block (best-effort)
+        const meNameEl = document.querySelector(".me__name");
+        const meEmailEl = document.querySelector(".me__sub");
+        if (meNameEl) meNameEl.textContent = _safeName(me);
+        if (meEmailEl) meEmailEl.textContent = (me && me.email) ? me.email : "";
+      }
+    }
+
+    function closeMenus() {
+      avatarMenu.classList.remove("menu--open");
+      dotsMenu.classList.remove("menu--open");
+      avatarBtn.setAttribute("aria-expanded", "false");
+      menuBtn.setAttribute("aria-expanded", "false");
+    }
+
+    function toggleMenu(menuEl, anchorBtn) {
+      const open = menuEl.classList.contains("menu--open");
+      closeMenus();
+      if (open) return;
+      const r = anchorBtn.getBoundingClientRect();
+      menuEl.style.top = `${Math.round(r.bottom + window.scrollY + 8)}px`;
+      menuEl.style.left = `${Math.round(r.left + window.scrollX)}px`;
+      menuEl.classList.add("menu--open");
+      anchorBtn.setAttribute("aria-expanded", "true");
+    }
+
+    function openModal(modalEl) {
+      closeMenus();
+      modalEl.classList.add("modal--open");
+      modalEl.setAttribute("aria-hidden", "false");
+    }
+
+    function closeModal(modalEl) {
+      modalEl.classList.remove("modal--open");
+      modalEl.setAttribute("aria-hidden", "true");
+    }
+
+    function setMsg(el, text, kind) {
+      el.textContent = text || "";
+      el.classList.remove("modal__msg--error", "modal__msg--success");
+      if (kind === "error") el.classList.add("modal__msg--error");
+      if (kind === "success") el.classList.add("modal__msg--success");
+    }
+
+    avatarBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMenu(avatarMenu, avatarBtn);
+    });
+
+    menuBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMenu(dotsMenu, menuBtn);
+    });
+
+    document.addEventListener("click", () => closeMenus());
+    window.addEventListener("resize", () => closeMenus());
+
+    updateAvatarBtn.addEventListener("click", () => {
+      closeMenus();
+      avatarFileInput.value = "";
+      avatarFileInput.click();
+    });
+
+    avatarFileInput.addEventListener("change", async () => {
+      const file = avatarFileInput.files && avatarFileInput.files[0];
+      if (!file) return;
+
+      const fd = new FormData();
+      fd.append("avatar", file);
+
+      // optimistic UI: local preview
+      avatarImg.src = URL.createObjectURL(file);
+
+      const r = await fetch("/api/profile/avatar", { method: "PATCH", body: fd });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok || !body.success) {
+        await refreshMe();
+        alert((body && body.message) ? body.message : "Failed to update avatar.");
+        return;
+      }
+      me = body.data || me;
+      renderAvatar();
+    });
+
+    document.getElementById("openPasswordBtn").addEventListener("click", () => {
+      setMsg(passwordMsg, "", "");
+      passwordForm.reset();
+      openModal(passwordModal);
+    });
+
+    document.getElementById("openAccountBtn").addEventListener("click", async () => {
+      setMsg(accountMsg, "", "");
+      await refreshMe();
+      accountForm.username.value = (me && me.username) ? me.username : "";
+      accountForm.fullname.value = (me && me.fullname) ? me.fullname : "";
+      accountForm.email.value = (me && me.email) ? me.email : "";
+      openModal(accountModal);
+    });
+
+    passwordForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setMsg(passwordMsg, "Saving...", "");
+      const payload = {
+        oldPassword: passwordForm.oldPassword.value,
+        newPassword: passwordForm.newPassword.value,
+      };
+
+      const r = await fetch("/api/profile/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok || !body.success) {
+        setMsg(passwordMsg, (body && body.message) ? body.message : "Failed to update password.", "error");
+        return;
+      }
+      setMsg(passwordMsg, body.message || "Password updated.", "success");
+      setTimeout(() => closeModal(passwordModal), 650);
+    });
+
+    accountForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setMsg(accountMsg, "Saving...", "");
+      const payload = {
+        username: accountForm.username.value,
+        fullname: accountForm.fullname.value,
+        email: accountForm.email.value,
+      };
+
+      const r = await fetch("/api/profile/account", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok || !body.success) {
+        setMsg(accountMsg, (body && body.message) ? body.message : "Failed to update account details.", "error");
+        return;
+      }
+      me = body.data || me;
+      renderAvatar();
+      setMsg(accountMsg, body.message || "Account updated.", "success");
+      setTimeout(() => closeModal(accountModal), 650);
+    });
+
+    // modal close interactions
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeMenus();
+        closeModal(passwordModal);
+        closeModal(accountModal);
+      }
+    });
+    for (const modalEl of [passwordModal, accountModal]) {
+      modalEl.addEventListener("click", (e) => {
+        const t = e.target;
+        if (t && t.getAttribute && t.getAttribute("data-close") === "1") closeModal(modalEl);
+      });
+    }
+
+    renderAvatar();
+    refreshMe().catch(() => {});
+  </script>
+
+  <!-- NEW: Real-time messaging (Socket.IO) -->
+  <script id="rt-data" type="application/json">{{
+    {
+      "backendUrl": backend_url,
+      "token": (session.get("access_token") or ""),
+      "selectedUserId": (selected_user_id or ""),
+      "frontendDeleteTemplate": url_for('delete_message', message_id='__MID__')
+    } | tojson
+  }}</script>
+  <script src="{{ backend_url }}/socket.io/socket.io.js"></script>
+  <script>
+    (function () {
+      const rtDataEl = document.getElementById("rt-data");
+      const rtData = JSON.parse(rtDataEl?.textContent || "{}");
+
+      const BACKEND_URL = rtData.backendUrl || "";
+      const TOKEN = rtData.token || "";
+      const FRONTEND_DELETE_TEMPLATE = rtData.frontendDeleteTemplate || "";
+
+      const meDataEl = document.getElementById("me-data");
+      const meRT = JSON.parse(meDataEl?.textContent || "{}");
+      const meId = meRT && meRT._id ? String(meRT._id) : "";
+      const selectedUserId = rtData.selectedUserId || "";
+
+      const form = document.querySelector("form.composer");
+      const textInput = document.querySelector("input[name='text']");
+      const fileInput = document.querySelector("input[name='image']");
+      const sendBtn = document.querySelector(".composer__send");
+      const chatBody = document.querySelector(".chat__body");
+
+      if (!form || !textInput) return;
+
+      function ensureMessagesWrap() {
+        let wrap = document.querySelector(".messages");
+        if (wrap) return wrap;
+        const empty = document.querySelector(".chat__body .empty");
+        if (empty) empty.remove();
+        wrap = document.createElement("div");
+        wrap.className = "messages";
+        if (chatBody) chatBody.appendChild(wrap);
+        return wrap;
+      }
+
+      function formatTime(iso) {
+        try {
+          const d = iso ? new Date(iso) : new Date();
+          return d.toLocaleString();
+        } catch {
+          return "";
+        }
+      }
+
+      function appendMessage(msg) {
+        const wrap = ensureMessagesWrap();
+        const mine = meId && msg && String(msg.senderId) === String(meId);
+        const item = document.createElement("div");
+        item.className = `msg ${mine ? "msg--mine" : "msg--theirs"}`;
+        const messageId = (msg && msg._id) ? String(msg._id) : "";
+        if (messageId) {
+          item.id = `msg-${msg._id}`;
+          item.dataset.messageId = messageId;
+        }
+
+        if (msg.text) {
+          const t = document.createElement("div");
+          t.className = "msg__text";
+          t.textContent = msg.text;
+          item.appendChild(t);
+        }
+        if (msg.image) {
+          const im = document.createElement("div");
+          im.className = "msg__image";
+          const a = document.createElement("a");
+          a.href = msg.image;
+          a.target = "_blank";
+          a.rel = "noreferrer";
+
+          const img = document.createElement("img");
+          img.className = "msg__img";
+          img.src = msg.image;
+          img.alt = "Image";
+          img.loading = "lazy";
+          a.appendChild(img);
+
+          im.appendChild(a);
+          item.appendChild(im);
+        }
+
+        // Match server-rendered UI: show "Unsend" for my own messages.
+        if (mine && messageId) {
+          const actions = document.createElement("div");
+          actions.className = "msg__actions";
+
+          const btn = document.createElement("button");
+          btn.className = "btn btn--ghost btn--danger";
+          btn.type = "button";
+          btn.title = "Unsend";
+          btn.textContent = "Unsend";
+
+          btn.addEventListener("click", async () => {
+            btn.disabled = true;
+            try {
+              // Prefer backend delete (no refresh). Socket "message_deleted" will remove for both users.
+              const r = await fetch(`${BACKEND_URL}/api/message/delete/${encodeURIComponent(messageId)}`, {
+                method: "DELETE",
+                headers: {
+                  "Accept": "application/json",
+                  ...(TOKEN ? { "Authorization": `Bearer ${TOKEN}` } : {}),
+                },
+                credentials: "include",
+              });
+              const body = await r.json().catch(() => ({}));
+              if (!r.ok || body?.success === false) throw new Error(body?.message || "Delete failed");
+            } catch (e) {
+              // Fallback: submit to Flask route (may refresh). Works even if CORS/auth blocks direct backend call.
+              try {
+                const form = document.createElement("form");
+                form.method = "post";
+                form.action = FRONTEND_DELETE_TEMPLATE
+                  ? FRONTEND_DELETE_TEMPLATE.replace("__MID__", encodeURIComponent(messageId))
+                  : "";
+                document.body.appendChild(form);
+                form.submit();
+              } catch {
+                btn.disabled = false;
+              }
+            }
+          });
+
+          actions.appendChild(btn);
+          item.appendChild(actions);
+        }
+
+        const meta = document.createElement("div");
+        meta.className = "msg__meta muted";
+        meta.textContent = `${mine ? "You" : "Them"} · ${formatTime(msg.createdAt)}`;
+        item.appendChild(meta);
+
+        wrap.appendChild(item);
+        if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
+      }
+
+      let socket = null;
+      try {
+        socket = io(BACKEND_URL, {
+          auth: { token: TOKEN },
+          withCredentials: true,
+          transports: ["websocket", "polling"],
+        });
+      } catch {
+        socket = null;
+      }
+
+      function canUseSocketForThisSend() {
+        if (!socket || !socket.connected) return false;
+        if (!selectedUserId) return false;
+        const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+        const text = (textInput.value || "").trim();
+        if (!hasFile) return Boolean(text);
+
+        // For image realtime, only allow reasonably sized files; else REST fallback
+        const f = fileInput.files[0];
+        const maxBytes = 2 * 1024 * 1024; // 2MB (keeps base64 payload manageable)
+        if (f && f.size > maxBytes) return false;
+        return Boolean(text) || Boolean(f);
+      }
+
+      if (socket) {
+        socket.on("receive_message", (msg) => {
+          if (!selectedUserId || !msg) return;
+          const partner = String(selectedUserId);
+          const s = String(msg.senderId);
+          const r = String(msg.receiverId);
+          const isForThisChat =
+            (s === meId && r === partner) ||
+            (s === partner && r === meId);
+          if (!isForThisChat) return;
+          appendMessage(msg);
+        });
+
+        socket.on("message_deleted", ({ messageId } = {}) => {
+          if (!messageId) return;
+          const el = document.getElementById(`msg-${messageId}`) || document.querySelector(`[data-message-id="${messageId}"]`);
+          if (el) el.remove();
+        });
+      }
+
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      form.addEventListener("submit", async (e) => {
+        if (!canUseSocketForThisSend()) return; // allow REST fallback
+        e.preventDefault();
+
+        const text = (textInput.value || "").trim();
+        const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+        const file = hasFile ? fileInput.files[0] : null;
+
+        if (sendBtn) sendBtn.disabled = true;
+        if (textInput) textInput.disabled = true;
+        if (fileInput) fileInput.disabled = true;
+
+        try {
+          let imageDataUrl = "";
+          if (file) imageDataUrl = await fileToDataUrl(file);
+
+          // optimistic clear inputs (UI will update via receive_message)
+          textInput.value = "";
+          if (fileInput) fileInput.value = "";
+
+          socket.emit(
+            "send_message",
+            { receiverId: selectedUserId, text, image: imageDataUrl || undefined },
+            (ack) => {
+              if (sendBtn) sendBtn.disabled = false;
+              if (textInput) textInput.disabled = false;
+              if (fileInput) fileInput.disabled = false;
+
+              if (!ack || !ack.success) {
+                // fallback to REST if socket send fails (restore inputs best-effort)
+                textInput.value = text;
+                // cannot restore file input for security; user can reattach if needed
+                form.submit();
+              }
+            },
+          );
+        } catch (err) {
+          if (sendBtn) sendBtn.disabled = false;
+          if (textInput) textInput.disabled = false;
+          if (fileInput) fileInput.disabled = false;
+          // reading failed -> fallback to REST
+          form.submit();
+        }
+      });
+    })();
+  </script>
+{% endblock %}
+

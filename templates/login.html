@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h1 class="h1">Login</h1>
+
+    <form method="post" action="{{ url_for('login_post') }}" class="form">
+      <label class="label">
+        <span>Email or Username</span>
+        <input class="input" name="identifier" placeholder="you@example.com or john_doe" required />
+      </label>
+
+      <label class="label">
+        <span>Password</span>
+        <input class="input" name="password" type="password" placeholder="••••••••" required />
+      </label>
+
+      <button class="btn" type="submit">Sign in</button>
+    </form>
+
+    <div class="divider"></div>
+    <p class="muted">
+      No account? <a href="{{ url_for('register') }}">Create one</a>.
+    </p>
+  </div>
+{% endblock %}
+
